@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv0
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.30.129
+    path: /data/redis/cluster0
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv1
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.30.129
+    path: /data/redis/cluster1
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv2
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.30.129
+    path: /data/redis/cluster2
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv3
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.30.129
+    path: /data/redis/cluster3
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv4
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.30.129
+    path: /data/redis/cluster4
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv5
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.30.129
+    path: /data/redis/cluster5

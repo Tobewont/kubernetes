@@ -1,0 +1,14 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: rabbitmq
+  namespace: public-service
+spec:
+  rules:
+    - host: rabbitmq.lzxlinux.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: rmq-cluster
+              servicePort: 15672

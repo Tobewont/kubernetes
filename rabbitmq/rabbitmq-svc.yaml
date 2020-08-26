@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rmq-cluster
+  namespace: public-service
+  labels:
+    app: rmq-cluster
+spec:
+  selector:
+    app: rmq-cluster
+  ports:
+  - name: http
+    port: 15672
+    protocol: TCP
+    targetPort: 15672
+  - name: amqp
+    port: 5672
+    protocol: TCP
+    targetPort: 5672
+  clusterIP: 172.21.11.245              #指定clusterIP，方便使用
+  type: ClusterIP

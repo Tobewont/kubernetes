@@ -1,0 +1,10 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb
+  namespace: kafka
+spec:
+  selector:
+    matchLabels:
+      app: zk
+  minAvailable: 2
