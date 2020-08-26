@@ -17,7 +17,7 @@ MaxUnavailable：表示最大不可用Pod数，表示应用Pod集群处于不可
 - 部署：
 
 ```bash
-kubectl apply -f zookeeper-headless.yaml
+kubectl apply -f ./
 
 kubectl get svc
 
@@ -140,3 +140,5 @@ numChildren = 0
 ```
 
 在 zk-0 创建的数据在集群中所有的服务上都是可用的。k8s部署zookeeper集群完成。
+
+---
