@@ -109,7 +109,7 @@ data-redis-5   Bound    nfs-pv5   1Gi        RWX                           51s
 - 下载redis-tribe：
 
 ```bash
-kubectl run -it ubuntu --image=ubuntu --restart=Never -n public-service bash
+kubectl run -it ubuntu --image=ubuntu --restart=Never -n public-service -- bash
 
 root@ubuntu:/# cat > /etc/apt/sources.list << EOF
 deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial main restricted
@@ -163,7 +163,7 @@ root@ubuntu:/# exit
 - 查看集群：
 
 ```bash
-kubectl exec -it -n public-service redis-0 bash
+kubectl exec -it redis-0 -n public-service -- bash
 
 root@redis-0:/data# redis-cli -c
 
@@ -213,7 +213,7 @@ OK
 ```
 
 ```bash
-kubectl exec -it -n public-service redis-4 bash
+kubectl exec -it redis-4 -n public-service -- bash
 
 root@redis-4:/data# redis-cli -c
 
@@ -247,7 +247,7 @@ redis-4   1/1     Running     0          61m   172.10.4.78   node1   <none>     
 redis-5   1/1     Running     0          61m   172.10.3.60   node3   <none>           <none>
 ubuntu    0/1     Completed   0          57m   172.10.2.56   node2   <none>           <none>
 
-kubectl exec -it -n public-service redis-2 bash
+kubectl exec -it redis-2 -n public-service -- bash
 
 root@redis-2:/data# redis-cli -c
 
@@ -263,14 +263,14 @@ root@redis-2:/data# redis-cli -c
 可以看到，`redis-2`是master，它的slave是`172.10.3.60`，即`redis-5`。
 
 ```bash
-kubectl delete pod -n public-service redis-2                #模拟节点宕掉
+kubectl delete pod redis-2 -n public-service                #模拟节点宕掉
 
-kubectl get pod -n public-service redis-2 -o wide
+kubectl get pod redis-2 -n public-service -o wide
 
 NAME      READY   STATUS    RESTARTS   AGE   IP            NODE    NOMINATED NODE   READINESS GATES
 redis-2   1/1     Running   0          38s   172.10.3.61   node3   <none>           <none>
 
-kubectl exec -it -n public-service redis-2 bash
+kubectl exec -it redis-2 -n public-service -- bash
 
 root@redis-2:/data# redis-cli -c
 
@@ -284,7 +284,7 @@ root@redis-2:/data# redis-cli -c
 ```
 
 ```bash
-kubectl exec -it -n public-service redis-5 bash
+kubectl exec -it redis-5 -n public-service -- bash
 
 root@redis-5:/data# redis-cli -c
 

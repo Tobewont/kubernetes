@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: public-service
+data:
+  config.yml: |-
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: 'smtp.163.com:465'                #邮箱smtp服务器代理，启用SSL发信, 端口一般是465
+      smtp_from: 'alert@163.com'                #发送邮箱名称
+      smtp_auth_username: 'alert@163.com'               #邮箱名称
+      smtp_auth_password: 'password'                #邮箱密码或授权码
+      smtp_require_tls: false
+    templates:
+    - '/etc/templates/*.tmpl'
+    route:
+      receiver: 'default'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 1h
+      group_by: ['alertname', 'instance', 'cluster', 'service']
+      routes:
+      - receiver: 'default'
+        match:
+          severity: 'warning'
+      - receiver: 'dingtalk'
+        match:
+          severity: 'critical'
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'instance', 'cluster', 'service']
+    receivers:
+    - name: 'default'
+      email_configs:
+      - to: 'receiver@163.com'
+        send_resolved: true
+    - name: 'dingtalk'
+      webhook_configs:
+      - url: 'http://dingtalk:8060/dingtalk/webhook/send'
+        send_resolved: true

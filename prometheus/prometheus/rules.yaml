@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: public-service
+data:
+  node.rules: |
+    groups:
+    - name: node
+      rules:
+      - alert: NodeDown
+        expr: up == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }}: down"
+          description: "{{ $labels.instance }} has been down for more than 3m"
+          value: "{{ $value }}"
+
+      - alert: NodeCPUHigh
+        expr: (1 - avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{$labels.instance}}: High CPU usage"
+          description: "{{$labels.instance}}: CPU usage is above 75%"
+          value: "{{ $value }}"
+
+      - alert: NodeCPUIowaitHigh
+        expr: avg by (instance) (irate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{$labels.instance}}: High CPU iowait usage"
+          description: "{{$labels.instance}}: CPU iowait usage is above 50%"
+          value: "{{ $value }}"
+
+      - alert: NodeMemoryUsageHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{$labels.instance}}: High memory usage"
+          description: "{{$labels.instance}}: Memory usage is above 90%"
+          value: "{{ $value }}"
+
+      - alert: NodeDiskRootLow
+        expr: (1 - node_filesystem_avail_bytes{fstype=~"ext.*|xfs",mountpoint ="/"} / node_filesystem_size_bytes{fstype=~"ext.*|xfs",mountpoint ="/"}) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{$labels.instance}}: Low disk(the / partition) space"
+          description: "{{$labels.instance}}: Disk(the / partition) usage is above 80%"
+          value: "{{ $value }}"
+        
+      - alert: NodeDiskBootLow
+        expr: (1 - node_filesystem_avail_bytes{fstype=~"ext.*|xfs",mountpoint ="/boot"} / node_filesystem_size_bytes{fstype=~"ext.*|xfs",mountpoint ="/boot"}) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{$labels.instance}}: Low disk(the /boot partition) space"
+          description: "{{$labels.instance}}: Disk(the /boot partition) usage is above 80%"
+          value: "{{ $value }}"
+
+      - alert: NodeLoad5High
+        expr: (node_load5) > (count by (instance) (node_cpu_seconds_total{mode='system'}) * 2)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{$labels.instance}}: Load(5m) High"
+          description: "{{$labels.instance}}: Load(5m) is 2 times the number of CPU cores"
+          value: "{{ $value }}"

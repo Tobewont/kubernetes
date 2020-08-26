@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: public-service
+spec:
+  serviceName: elasticsearch
+  replicas: 3
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.6.2
+        resources:
+            limits:
+              cpu: 1000m
+            requests:
+              cpu: 100m
+        ports:
+        - containerPort: 9200
+          name: api
+          protocol: TCP
+        - containerPort: 9300
+          name: discovery
+          protocol: TCP
+        env:
+          - name: "http.host"
+            value: "0.0.0.0"
+          - name: "network.host"
+            value: "_eth0_"
+          - name: "cluster.name"
+            value: "es-cluster"
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: "bootstrap.memory_lock"
+            value: "false"
+          - name: "discovery.seed_hosts"
+            value: "elasticsearch"
+          - name: "cluster.initial_master_nodes"
+            value: "elasticsearch-0,elasticsearch-1,elasticsearch-2"
+          - name: "discovery.seed_resolver.timeout"
+            value: "10s"
+          - name: "discovery.zen.minimum_master_nodes"
+            value: "2"
+          - name: "ES_JAVA_OPTS"
+            value: "-Xms512m -Xmx512m"
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      volumes:
+      - name: data
+        hostPath:
+          path: /home/elasticsearch/data                #该路径为es数据存储目录，自动创建
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: increase-fd-ulimit
+        image: busybox
+        command: ["sh", "-c", "ulimit -n 65536"]
+        securityContext:
+          privileged: true

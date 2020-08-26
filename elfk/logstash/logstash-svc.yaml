@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: public-service
+spec:
+  selector:
+    app: logstash
+  ports:
+  - port: 5044
+    protocol: TCP
+    targetPort: 5044
+  clusterIP: 10.96.103.207              #指定clusterIP，方便使用

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dingtalk-config
+  namespace: public-service
+data:
+  config.yml: |-
+    targets:
+      webhook:
+        url: https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxx             #修改为钉钉机器人的webhook
+        mention:
+          all: true             #@所有人

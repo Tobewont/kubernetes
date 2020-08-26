@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: zk-config
+  namespace: public-service
 data:
   ensemble: "zk-0;zk-1;zk-2"
   replicas: "3"

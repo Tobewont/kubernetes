@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dingtalk
+  namespace: public-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dingtalk
+  template:
+    metadata:
+      name: dingtalk
+      labels:
+        app: dingtalk
+    spec:
+      containers:
+      - name: dingtalk
+        image: timonwong/prometheus-webhook-dingtalk:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8060
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus-webhook-dingtalk
+      volumes:
+      - name: config
+        configMap:
+          name: dingtalk-config

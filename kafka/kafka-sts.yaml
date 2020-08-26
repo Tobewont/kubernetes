@@ -2,13 +2,13 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: kafka
-  namespace: kafka
+  namespace: public-service
 spec:
+  serviceName: kafka
+  replicas: 3
   selector:
      matchLabels:
         app: kafka
-  serviceName: kafka
-  replicas: 3
   template:
     metadata:
       labels:

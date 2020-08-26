@@ -2,13 +2,13 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: zk
-  namespace: kafka
+  namespace: public-service
 spec:
+  serviceName: zk-hs
+  replicas: 3
   selector:
     matchLabels:
       app: zk
-  serviceName: zk-hs
-  replicas: 3
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: OrderedReady

@@ -18,4 +18,3 @@ spec:
     protocol: TCP
     targetPort: 5672
   clusterIP: 172.21.11.245              #指定clusterIP，方便使用
-  type: ClusterIP

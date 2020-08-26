@@ -2,7 +2,7 @@ apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
   name: kafka-pdb
-  namespace: kafka
+  namespace: public-service
 spec:
   selector:
     matchLabels:

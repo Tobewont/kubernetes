@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dingtalk
+  namespace: public-service
+  labels:
+    app: dingtalk
+  annotations:
+    prometheus.io/scrape: 'false'
+spec:
+  selector:
+    app: dingtalk
+  ports:
+  - name: dingtalk
+    port: 8060
+    protocol: TCP
+    targetPort: 8060

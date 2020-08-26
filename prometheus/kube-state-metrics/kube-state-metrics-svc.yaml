@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: public-service
+  labels:
+    app: kube-state-metrics
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/http-probe: 'true'
+    prometheus.io/http-probe-path: '/healthz'
+    prometheus.io/http-probe-port: '8080'
+spec:
+  selector:
+    app: kube-state-metrics
+  ports:
+  - name: kube-state-metrics
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
