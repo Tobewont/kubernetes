@@ -1,2 +1,2 @@
 ## Kubernetes
-kubernetes manifests, deploy common software in kubernetes mode.
+Kubernetes manifests, deploy common software in kubernetes mode.
