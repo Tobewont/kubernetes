@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: weave-scope-agent
+  namespace: weave
+  labels:
+    name: weave-scope-agent
+    app: weave-scope
+    weave-cloud-component: scope
+    weave-scope-component: agent
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  minReadySeconds: 5
+  selector:
+    matchLabels:
+      name: weave-scope-agent
+      app: weave-scope
+      weave-cloud-component: scope
+      weave-scope-component: agent
+  template:
+    metadata:
+      labels:
+        name: weave-scope-agent
+        app: weave-scope
+        weave-cloud-component: scope
+        weave-scope-component: agent
+    spec:
+      containers:
+        - name: scope-agent
+          image: docker.io/weaveworks/scope:1.13.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - '--mode=probe'
+            - '--probe-only'
+            - '--probe.kubernetes.role=host'
+            - '--probe.publish.interval=4500ms'
+            - '--probe.spy.interval=2s'
+            - '--probe.docker.bridge=docker0'
+            - '--probe.docker=true'
+            - 'weave-scope-app.weave.svc.cluster.local:80'
+          command:
+            - /home/weave/scope
+          env: []
+          resources:
+            limits:
+              memory: 2000Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: scope-plugins
+              mountPath: /var/run/scope/plugins
+            - name: sys-kernel-debug
+              mountPath: /sys/kernel/debug
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: scope-plugins
+          hostPath:
+            path: /var/run/scope/plugins
+        - name: sys-kernel-debug
+          hostPath:
+            path: /sys/kernel/debug
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+        - effect: NoExecute
+          operator: Exists

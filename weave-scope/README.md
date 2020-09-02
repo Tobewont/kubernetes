@@ -3,7 +3,9 @@
 - 部署：
 
 ```bash
-kubectl apply -f weave-scope.yaml
+kubectl apply -f weave-ns.yaml
+
+kubectl apply -f manifests/
 ```
 
 ```bash

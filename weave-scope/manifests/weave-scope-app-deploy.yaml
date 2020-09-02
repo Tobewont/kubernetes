@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weave-scope-app
+  namespace: weave
+  labels:
+    name: weave-scope-app
+    app: weave-scope
+    weave-cloud-component: scope
+    weave-scope-component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: weave-scope-app
+      app: weave-scope
+      weave-cloud-component: scope
+      weave-scope-component: app
+  template:
+    metadata:
+      labels:
+        name: weave-scope-app
+        app: weave-scope
+        weave-cloud-component: scope
+        weave-scope-component: app
+    spec:
+      containers:
+        - name: app
+          image: docker.io/weaveworks/scope:1.13.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4040
+              protocol: TCP
+          args:
+            - '--mode=app'
+          command:
+            - /home/weave/scope
+          env: []
