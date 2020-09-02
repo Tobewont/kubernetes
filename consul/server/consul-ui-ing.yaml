@@ -1,0 +1,14 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: consul
+  namespace: public-service
+spec:
+  rules:
+    - host: consul.lzxlinux.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: consul-ui
+              servicePort: 80

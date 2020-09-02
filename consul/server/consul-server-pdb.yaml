@@ -1,0 +1,11 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: consul-server
+  namespace: public-service
+spec:
+  selector:
+    matchLabels:
+      app: consul
+      component: server
+  minAvailable: 2

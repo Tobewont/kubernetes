@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-dns
+  namespace: public-service
+  labels:
+    app: consul
+    component: dns
+spec:
+  selector:
+    app: consul
+  ports:
+    - name: dns-tcp
+      protocol: TCP
+      port: 53
+      targetPort: dns-tcp
+    - name: dns-udp
+      protocol: UDP
+      port: 53
+      targetPort: dns-udp

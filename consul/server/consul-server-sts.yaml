@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: consul-server
+  namespace: public-service
+spec:
+  serviceName: consul-server
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: consul
+      component: server
+  template:
+    metadata:
+      labels:
+        app: consul
+        component: server
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "componment"
+                    operator: In
+                    values:
+                    - server
+              topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: consul
+        image: consul:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8500
+          name: http
+        - containerPort: 8600
+          name: dns-tcp
+          protocol: TCP
+        - containerPort: 8600
+          name: dns-udp
+          protocol: UDP
+        - containerPort: 8301
+          name: serflan
+        - containerPort: 8302
+          name: serfwan
+        - containerPort: 8300
+          name: server
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        args:
+        - "agent"
+        - "-server"
+        - "-advertise=$(POD_IP)"
+        - "-bind=0.0.0.0"
+        - "-bootstrap-expect=3"
+        - "-datacenter=dc1"
+        - "-config-dir=/consul/userconfig"
+        - "-data-dir=/consul/data"
+        - "-disable-host-node-id"
+        - "-domain=cluster.local"
+        - "-retry-join=consul-server-0.consul-server.$(NAMESPACE).svc.cluster.local"
+        - "-client=0.0.0.0"
+        - "-ui"
+        resources:
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - consul leave
+        volumeMounts:
+        - name: data
+          mountPath: /consul/data
+        - name: user-config
+          mountPath: /consul/userconfig
+      volumes:
+      - name: user-config
+        configMap:
+          name: consul-server-config
+      - name: data
+        emptyDir: {}
+      securityContext:
+        fsGroup: 1000
+
+#  volumeClaimTemplates:
+#  - metadata:
+#      name: data
+#    spec:
+#      accessModes:
+#        - ReadWriteMany
+#      storageClassName: "gluster-heketi-2"
+#      resources:
+#        requests:
+#          storage: 10Gi
