@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: apollo-portal
+  namespace: public-service
+  labels:
+    app: apollo-portal
+spec:
+  selector:
+    app: apollo-portal
+  sessionAffinity: ClientIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8070
+      targetPort: 8070

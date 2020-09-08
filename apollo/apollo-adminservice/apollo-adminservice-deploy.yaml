@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apollo-adminservice
+  namespace: public-service
+  labels:
+    app: apollo-adminservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apollo-adminservice
+  template:
+    metadata:
+      labels:
+        app: apollo-adminservice
+    spec:
+      containers:
+        - name: apollo-adminservice
+          image: apolloconfig/apollo-adminservice:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "github,kubernetes"
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+            requests:
+              cpu: "1000m"
+              memory: "1024Mi"
+          volumeMounts:
+            - name: apollo-adminservice-config
+              mountPath: /apollo-adminservice/config/application-github.properties
+              subPath: application-github.properties
+      volumes:
+        - name: apollo-adminservice-config
+          configMap:
+            name: apollo-adminservice
+            items:
+              - key: application-github.properties
+                path: application-github.properties
+            defaultMode: 420

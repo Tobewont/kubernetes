@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apollo-portal
+  namespace: public-service
+  labels:
+    app: apollo-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apollo-portal
+  template:
+    metadata:
+      labels:
+        app: apollo-portal
+    spec:
+      containers:
+        - name: apollo-portal
+          image: apolloconfig/apollo-portal:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8070
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "github,auth"
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+            requests:
+              cpu: "1000m"
+              memory: "1024Mi"
+          volumeMounts:
+            - name: apollo-portal-config
+              mountPath: /apollo-portal/config/application-github.properties
+              subPath: application-github.properties
+            - name: apollo-portal-config
+              mountPath: /apollo-portal/config/apollo-env.properties
+              subPath: apollo-env.properties
+      volumes:
+        - name: apollo-portal-config
+          configMap:
+            name: apollo-portal
+            items:
+              - key: application-github.properties
+                path: application-github.properties
+              - key: apollo-env.properties
+                path: apollo-env.properties
+            defaultMode: 420

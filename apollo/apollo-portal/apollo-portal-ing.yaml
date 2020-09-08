@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: apollo-portal
+  namespace: public-service
+  labels:
+    app: apollo-portal
+spec:
+  rules:
+    - host: apollo.lzxlinux.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: apollo-portal
+              servicePort: 8070

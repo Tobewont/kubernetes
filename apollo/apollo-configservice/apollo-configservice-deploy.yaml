@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apollo-configservice
+  namespace: public-service
+  labels:
+    app: apollo-configservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apollo-configservice
+  template:
+    metadata:
+      labels:
+        app: apollo-configservice
+    spec:
+      containers:
+        - name: apollo-configservice
+          image: apolloconfig/apollo-configservice:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "github,kubernetes"
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+            requests:
+              cpu: "1000m"
+              memory: "1024Mi"
+          volumeMounts:
+            - name: apollo-configservice-config
+              mountPath: /apollo-configservice/config/application-github.properties
+              subPath: application-github.properties
+      volumes:
+        - name: apollo-configservice-config
+          configMap:
+            name: apollo-configservice
+            items:
+              - key: application-github.properties
+                path: application-github.properties
+            defaultMode: 420
