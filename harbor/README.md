@@ -90,9 +90,9 @@ myharbor-harbor-trivy-0                          1/1     Running   0          3m
 
 添加hosts：`harbor.lzxlinux.com`，使用初始账号密码 `admin`/`Harbor12345` 登录即可。
 
-![Image text](https://github.com/Tobewont/kubernetes/blob/master/yapi/img/harbor-1.png)
+![Image text](https://github.com/Tobewont/kubernetes/blob/master/harbor/img/harbor-1.png)
 
-![Image text](https://github.com/Tobewont/kubernetes/blob/master/yapi/img/harbor-2.png)
+![Image text](https://github.com/Tobewont/kubernetes/blob/master/harbor/img/harbor-2.png)
 
 - docker添加harbor证书：
 
@@ -196,7 +196,7 @@ myharbor	https://harbor.lzxlinux.com/chartrepo/public
 helm push harbor myharbor --ca-file /etc/docker/certs.d/harbor.lzxlinux.com/ca.crt
 ```
 
-![Image text](https://github.com/Tobewont/kubernetes/blob/master/yapi/img/harbor-3.png)
+![Image text](https://github.com/Tobewont/kubernetes/blob/master/harbor/img/harbor-3.png)
 
 helm部署harbor完成。
 
