@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-chartmuseum
+  labels:
+    app: harbor
+    component: chartmuseum
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/harbor/chartmuseum
+  
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-jobservice
+  labels:
+    app: harbor
+    component: jobservice
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/harbor/jobservice
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-registry
+  labels:
+    app: harbor
+    component: registry
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/harbor/registry
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-database
+  labels:
+    app: harbor
+    component: database
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/harbor/database
+    
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-redis
+  labels:
+    app: harbor
+    component: redis
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/harbor/redis
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-trivy
+  labels:
+    app: harbor
+    component: trivy
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/harbor/trivy
