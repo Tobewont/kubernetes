@@ -1,0 +1,224 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-runner
+  namespace: public-service
+  labels:
+    app: gitlab-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab-runner
+  template:
+    metadata:
+      labels:
+        app: gitlab-runner
+    spec:
+      serviceAccountName: gitlab-runner
+      initContainers:
+      - name: configure
+        image: gitlab/gitlab-runner:alpine-v13.4.1
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '/config/configure']
+        env:
+        - name: CI_SERVER_URL
+          value: "http://gitlab.lzxlinux.com/"              #注册的url
+        - name: CLONE_URL
+          value: ""
+        - name: RUNNER_REQUEST_CONCURRENCY
+          value: "1"
+        - name: RUNNER_EXECUTOR
+          value: "kubernetes"
+        - name: REGISTER_LOCKED
+          value: "false"
+        - name: RUNNER_TAG_LIST
+          value: "k8s-runner"               #gitlab-runner的标签
+        - name: RUNNER_OUTPUT_LIMIT
+          value: "4096"
+        - name: KUBERNETES_IMAGE
+          value: "ubuntu:16.04"             #runner pod的镜像
+        - name: KUBERNETES_NAMESPACE
+          value: "public-service"               #runner pod的namespace
+        - name: KUBERNETES_POLL_TIMEOUT
+          value: "180"
+        - name: KUBERNETES_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_CPU_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "400m"
+        - name: KUBERNETES_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_MEMORY_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "512Mi"
+        - name: KUBERNETES_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_CPU_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "200m"
+        - name: KUBERNETES_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_MEMORY_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_ACCOUNT
+          value: ""
+        - name: KUBERNETES_SERVICE_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_SERVICE_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_SERVICE_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_HELPER_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_HELPER_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_HELPER_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_IMAGE
+          value: ""
+        - name: KUBERNETES_PULL_POLICY
+          value: "if-not-present"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: runner-secrets
+          mountPath: /secrets
+          readOnly: false
+        - name: scripts
+          mountPath: /config
+          readOnly: true
+        - name: init-runner-secrets
+          mountPath: /init-secrets
+          readOnly: true
+      containers:
+      - name: gitlab-runner
+        image: gitlab/gitlab-runner:alpine-v13.4.1
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash", "/scripts/entrypoint"]
+        env:
+        - name: CI_SERVER_URL
+          value: "http://gitlab.lzxlinux.com/"              #注册的url
+        - name: CLONE_URL
+          value: ""
+        - name: RUNNER_REQUEST_CONCURRENCY
+          value: "1"
+        - name: RUNNER_EXECUTOR
+          value: "kubernetes"
+        - name: REGISTER_LOCKED
+          value: "false"
+        - name: RUNNER_TAG_LIST
+          value: "k8s-runner"               #gitlab-runner的标签
+        - name: RUNNER_OUTPUT_LIMIT
+          value: "4096"
+        - name: KUBERNETES_IMAGE
+          value: "ubuntu:16.04"
+        - name: KUBERNETES_NAMESPACE
+          value: "public-service"
+        - name: KUBERNETES_POLL_TIMEOUT
+          value: "180"
+        - name: KUBERNETES_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_CPU_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "400m"
+        - name: KUBERNETES_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_MEMORY_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "512Mi"
+        - name: KUBERNETES_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_CPU_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "200m"
+        - name: KUBERNETES_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_MEMORY_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_ACCOUNT
+          value: ""
+        - name: KUBERNETES_SERVICE_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_SERVICE_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_SERVICE_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_HELPER_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_HELPER_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_HELPER_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_IMAGE
+          value: ""
+        - name: KUBERNETES_PULL_POLICY
+          value: "if-not-present"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/entrypoint", "unregister", "--all-runners"]
+        livenessProbe:
+          exec:
+            command: ["/bin/bash", "/scripts/check-live"]
+          initialDelaySeconds: 60
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["/usr/bin/pgrep","gitlab.*runner"]
+          initialDelaySeconds: 10
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        volumeMounts:
+        - name: runner-secrets
+          mountPath: /secrets
+        - name: etc-gitlab-runner
+          mountPath: /home/gitlab-runner/.gitlab-runner
+        - name: scripts
+          mountPath: /scripts
+      hostAliases:
+        - hostnames:
+          - gitlab.lzxlinux.com             #添加dns解析，避免无法解析
+          ip: 192.168.30.129
+      securityContext:
+        runAsUser: 0
+      terminationGracePeriodSeconds: 3600
+      volumes:
+      - name: runner-secrets
+        emptyDir:
+          medium: "Memory"
+      - name: etc-gitlab-runner
+        emptyDir:
+          medium: "Memory"
+      - name: init-runner-secrets
+        projected:
+          sources:
+            - secret:
+                name: gitlab-runner
+                items:
+                  - key: runner-registration-token
+                    path: runner-registration-token
+                  - key: runner-token
+                    path: runner-token
+      - name: scripts
+        configMap:
+          name: gitlab-runner
