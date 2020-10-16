@@ -2,7 +2,7 @@
 
 - 查看注册url和token：
 
-![Image text](https://github.com/Tobewont/kubernetes/blob/master/gitlab-runner/img/runner-2.png)
+![Image text](https://github.com/Tobewont/kubernetes/blob/master/gitlab-runner/img/runner-1.png)
 
 - base64：
 
