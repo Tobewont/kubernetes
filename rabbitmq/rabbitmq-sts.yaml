@@ -19,12 +19,22 @@ spec:
       serviceAccountName: rmq-cluster
       terminationGracePeriodSeconds: 30
       containers:
-      - args:
+      - name: rabbitmq
+        image: rabbitmq:3.7-management
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 15672
+          name: http
+          protocol: TCP
+        - containerPort: 5672
+          name: amqp
+          protocol: TCP
+        command:
+        - sh
+        args:
         - -c
         - cp -v /etc/rabbitmq/rabbitmq.conf ${RABBITMQ_CONFIG_FILE}; exec docker-entrypoint.sh
           rabbitmq-server
-        command:
-        - sh
         env:
         - name: RABBITMQ_DEFAULT_USER
           valueFrom:
@@ -61,9 +71,6 @@ spec:
           value: rabbit@$(POD_NAME).rmq-cluster.$(POD_NAMESPACE).svc.cluster.local
         - name: RABBITMQ_CONFIG_FILE
           value: /var/lib/rabbitmq/rabbitmq.conf
-        name: rabbitmq
-        image: rabbitmq:3.7-management
-        imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
             command:
@@ -71,13 +78,6 @@ spec:
             - status
           initialDelaySeconds: 30
           timeoutSeconds: 10
-        ports:
-        - containerPort: 15672
-          name: http
-          protocol: TCP
-        - containerPort: 5672
-          name: amqp
-          protocol: TCP
         readinessProbe:
           exec:
             command:
