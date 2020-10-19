@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-webservice
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: webservice
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http-webservice
+    - port: 8181
+      targetPort: 8181
+      protocol: TCP
+      name: http-workhorse
+  selector:
+    app: gitlab
+    component: webservice

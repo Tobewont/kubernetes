@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gitlab-postgresql
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: postgresql
+spec:
+  serviceName: gitlab-postgresql-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: gitlab
+      component: postgresql
+      role: master
+  template:
+    metadata:
+      name: gitlab-postgresql
+      labels:
+        app: gitlab
+        component: postgresql
+        role: master
+      annotations:
+        postgresql.gitlab/init-revision: "1"
+    spec:
+      containers:
+        - name: gitlab-postgresql
+          image: docker.io/bitnami/postgresql:11.9.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            - name: POSTGRES_POSTGRES_PASSWORD_FILE
+              value: "/opt/bitnami/postgresql/secrets/postgresql-postgres-password"
+            - name: POSTGRES_USER
+              value: "gitlab"
+            - name: POSTGRES_PASSWORD_FILE
+              value: "/opt/bitnami/postgresql/secrets/postgresql-password"
+            - name: POSTGRES_DB
+              value: "gitlabhq_production"
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "gitlab" -d "gitlabhq_production" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "gitlab" -d "gitlabhq_production" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: custom-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+            - name: postgresql-password
+              mountPath: /opt/bitnami/postgresql/secrets/
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+              subPath: 
+            - mountPath: /docker-entrypoint-preinitdb.d/init_revision.sh
+              name: custom-init-scripts
+              subPath: init_revision.sh
+      securityContext:
+        fsGroup: 0
+      volumes:
+        - name: postgresql-password
+          secret:
+            secretName: "gitlab-postgresql-password"
+        - name: custom-init-scripts
+          configMap:
+            name: gitlab-postgresql-init-db
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: gitlab
+          component: postgresql
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+        selector:
+          matchLabels:
+            app: gitlab
+            component: postgresql

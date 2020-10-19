@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: gitlab-webservice
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: webservice
+spec:
+  rules:
+    - host: gitlab.lzxlinux.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: gitlab-webservice
+              servicePort: 8181
+          - path: /admin/sidekiq
+            backend:
+              serviceName: gitlab-webservice
+              servicePort: 8080

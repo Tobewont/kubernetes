@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-registry
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: registry
+data:
+  configure: |-
+    if [ -e /config/accesskey ] ; then
+      sed -e 's@ACCESS_KEY@'"$(cat /config/accesskey)"'@' -e 's@SECRET_KEY@'"$(cat /config/secretkey)"'@' /config/config.yml > /registry/config.yml
+    else
+      cp -v -r -L /config/config.yml  /registry/config.yml
+    fi
+
+    sed -i -e 's@HTTP_SECRET@'"$(cat /config/httpSecret)"'@' /registry/config.yml
+
+    if [ -d /config/notifications ]; then
+      for i in /config/notifications/*; do
+        filename=$(basename $i);
+        sed -i -e 's@'"${filename}"'@'"$(cat $i)"'@' /registry/config.yml;
+      done
+    fi
+
+    if [ -d /config/storage ]; then
+
+      mkdir -p /registry/storage
+      cp -v -r -L /config/storage/* /registry/storage/
+
+      echo '' >> /registry/storage/config
+
+      if ! $(egrep -A1 '^delete:\s*$' /registry/storage/config | egrep -q '\s{2,4}enabled:') ; then
+        echo 'delete:' >> /registry/storage/config
+        echo '  enabled: true' >> /registry/storage/config
+      fi
+
+      sed -i 's/^/  /' /registry/storage/config
+
+      sed -i '/storage:/ r /registry/storage/config' /registry/config.yml
+
+      rm /registry/storage/config
+    fi
+
+    cat /config/certificate.crt > /registry/certificate.crt
+
+    if [ -f /config/profiling-key.json ]; then
+      cp /config/profiling-key.json /registry/profiling-key.json
+    fi
+    
+  config.yml: |
+    version: 0.1
+    log:
+      fields:
+        service: registry
+      level: warn
+    http:
+      debug:
+        addr: ':5001'
+        prometheus:
+          enabled: false
+          path: /metrics
+      draintimeout: 0
+      headers:
+        X-Content-Type-Options: [nosniff]
+      addr: :5000
+      secret: "HTTP_SECRET"
+      relativeurls: false
+    health:
+      storagedriver:
+        enabled: false
+        interval: 10s
+        threshold: 3
+    auth:
+      token:
+        realm: http://gitlab.lzxlinux.com/jwt/auth
+        service: container_registry
+        issuer: "gitlab-issuer"
+        rootcertbundle: /etc/docker/registry/certificate.crt
+        autoredirect: false
+    compatibility:
+      schema1:
+        enabled: false
+    validation:
+      disabled: true
+    
+    profiling:
+    storage:
+      maintenance:
+        readonly:
+          enabled: false
+      s3:
+        accesskey: "ACCESS_KEY"
+        secretkey: "SECRET_KEY"
+        region: us-east-1
+        regionendpoint: http://gitlab-minio-svc:9000
+        bucket: registry
+        secure: true
+        v4auth: true
+        rootdirectory: /
+      cache:
+        blobdescriptor: 'inmemory'
+      delete:
+        enabled: true
+      redirect:
+        disable: true

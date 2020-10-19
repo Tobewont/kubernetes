@@ -1,0 +1,286 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-webservice
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: webservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      component: webservice
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: webservice
+    spec:
+      initContainers:
+        - name: configure
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ['sh']
+          args: [ '-c', 'sh -x /config-webservice/configure ; sh -x /config-workhorse/configure ; mkdir -p -m 3770 /tmp/gitlab']
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+          - name: webservice-config
+            mountPath: /config-webservice
+            readOnly: true
+          - name: workhorse-config
+            mountPath: /config-workhorse
+            readOnly: true
+          - name: init-webservice-secrets
+            mountPath: /init-config
+            readOnly: true
+          - name: webservice-secrets
+            mountPath: /init-secrets
+            readOnly: false
+          - name: workhorse-secrets
+            mountPath: /init-secrets-workhorse
+            readOnly: false
+          - name: shared-tmp
+            mountPath: /tmp
+            readOnly: false
+        - name: dependencies
+          image: registry.gitlab.com/gitlab-org/build/cng/gitlab-webservice-ee:v13.4.3
+          imagePullPolicy: IfNotPresent
+          args:
+            - /scripts/wait-for-deps
+          env:
+            - name: GITALY_FEATURE_DEFAULT_ON
+              value: "1"
+            - name: CONFIG_TEMPLATE_DIRECTORY
+              value: '/var/opt/gitlab/templates'
+            - name: CONFIG_DIRECTORY
+              value: '/srv/gitlab/config'
+            - name: WORKHORSE_ARCHIVE_CACHE_DISABLED
+              value: "1"
+            - name: ENABLE_BOOTSNAP
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+            - name: webservice-config
+              mountPath: '/var/opt/gitlab/templates'
+            - name: webservice-secrets
+              mountPath: '/etc/gitlab'
+              readOnly: true
+            - name: webservice-secrets
+              mountPath: /srv/gitlab/config/secrets.yml
+              subPath: rails-secrets/secrets.yml
+              readOnly: true
+      containers:
+        - name: webservice
+          image: registry.gitlab.com/gitlab-org/build/cng/gitlab-webservice-ee:v13.4.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: webservice
+          env:
+            - name: GITLAB_WEBSERVER
+              value: puma
+            - name: TMPDIR
+              value: "/tmp/gitlab"
+            - name: GITALY_FEATURE_DEFAULT_ON
+              value: "1"
+            - name: CONFIG_TEMPLATE_DIRECTORY
+              value: '/var/opt/gitlab/templates'
+            - name: CONFIG_DIRECTORY
+              value: '/srv/gitlab/config'
+            - name: ENABLE_BOOTSNAP
+              value: "1"
+            - name: WORKER_PROCESSES
+              value: "2"
+            - name: WORKER_TIMEOUT
+              value: "60"
+            - name: INTERNAL_PORT
+              value: "8080"
+            - name: PUMA_THREADS_MIN
+              value: "4"
+            - name: PUMA_THREADS_MAX
+              value: "4"
+            - name: PUMA_WORKER_MAX_MEMORY
+              value: "1024"
+            - name: DISABLE_PUMA_WORKER_KILLER
+              value: "false"
+            - name: GITLAB_TRACING_URL
+              value: ""
+            - name: WORKHORSE_ARCHIVE_CACHE_DISABLED
+              value: "true"
+          resources:
+            limits:
+              cpu: 300m
+              memory: 1.5G
+            requests:
+              cpu: 300m
+              memory: 1.0G
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/bash", "-c", "pkill -SIGINT -o ruby"]
+          volumeMounts:
+            - name: webservice-config
+              mountPath: '/var/opt/gitlab/templates'
+            - name: webservice-secrets
+              mountPath: '/etc/gitlab'
+              readOnly: true
+            - name: webservice-secrets
+              mountPath: /srv/gitlab/config/secrets.yml
+              subPath: rails-secrets/secrets.yml
+            - name: webservice-config
+              mountPath: '/srv/gitlab/config/initializers/smtp_settings.rb'
+              subPath: smtp_settings.rb
+            - name: webservice-config
+              mountPath: '/srv/gitlab/INSTALLATION_TYPE'
+              subPath: installation_type
+            - name: shared-upload-directory
+              mountPath: /srv/gitlab/public/uploads/tmp
+              readOnly: false
+            - name: shared-tmp
+              mountPath: '/tmp'
+              readOnly: false
+            - name: etc-ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: true
+        - name: gitlab-workhorse
+          image: registry.gitlab.com/gitlab-org/build/cng/gitlab-workhorse-ee:v13.4.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8181
+              name: workhorse
+          env:
+            - name: TMPDIR
+              value: "/tmp/gitlab"
+            - name: GITLAB_WORKHORSE_EXTRA_ARGS
+              value: ""
+            - name: GITLAB_WORKHORSE_LISTEN_PORT
+              value: "8181"
+            - name: GITLAB_WORKHORSE_LOG_FORMAT
+              value: "json"
+            - name: CONFIG_TEMPLATE_DIRECTORY
+              value: '/var/opt/gitlab/templates'
+            - name: CONFIG_DIRECTORY
+              value: '/srv/gitlab/config'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100M
+          livenessProbe:
+            exec:
+              command:
+              - /scripts/healthcheck
+            initialDelaySeconds: 20
+            periodSeconds: 60
+            timeoutSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+              - /scripts/healthcheck
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+          volumeMounts:
+            - name: workhorse-config
+              mountPath: '/var/opt/gitlab/templates'
+            - name: workhorse-secrets
+              mountPath: '/etc/gitlab'
+              readOnly: true
+            - name: shared-upload-directory
+              mountPath: /srv/gitlab/public/uploads/tmp
+              readOnly: false
+            - name: shared-tmp
+              mountPath: '/tmp'
+              readOnly: false
+            - name: etc-ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: true
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: gitlab
+                  component: webservice
+      volumes:
+      - name: shared-tmp
+        emptyDir: {}
+      - name: webservice-config
+        configMap:
+          name: gitlab-webservice
+      - name: workhorse-config
+        configMap:
+            name: gitlab-workhorse-config
+      - name: init-webservice-secrets
+        projected:
+          defaultMode: 0400
+          sources:
+          - secret:
+              name: "gitlab-rails-secret"
+              items:
+                - key: secrets.yml
+                  path: rails-secrets/secrets.yml
+          - secret:
+              name: "gitlab-shell-secret"
+              items:
+                - key: "secret"
+                  path: shell/.gitlab_shell_secret
+          - secret:
+              
+              name: "gitlab-gitaly-secret"
+              items:
+                - key: "token"
+                  path: gitaly/gitaly_token
+          - secret:
+              name: "gitlab-redis-secret"
+              items:
+                - key: "secret"
+                  path: redis/redis-password
+          - secret:
+              name: "gitlab-postgresql-password"
+              items:
+                - key: "postgresql-password"
+                  path: postgres/psql-password
+          - secret:
+              name: "gitlab-registry-secret"
+              items:
+                - key: registry-auth.key
+                  path: registry/gitlab-registry.key
+          - secret:
+              name: "gitlab-workhorse-secret"
+              items:
+                - key: "shared_secret"
+                  path: gitlab-workhorse/secret
+          - secret:
+              name: "gitlab-minio-secret"
+              items:
+                - key: accesskey
+                  path: minio/accesskey
+                - key: secretkey
+                  path: minio/secretkey
+      - name: webservice-secrets
+        emptyDir:
+          medium: "Memory"
+      - name: workhorse-secrets
+        emptyDir:
+          medium: "Memory"
+      - name: shared-upload-directory
+        emptyDir: {}
+      - name: etc-ssl-certs
+        emptyDir:
+          medium: "Memory"

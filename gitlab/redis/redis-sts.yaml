@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gitlab-redis-master
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: redis
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: gitlab
+      component: redis
+      role: master
+  serviceName: gitlab-redis-headless
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: redis
+        role: master
+    spec:
+      containers:
+      - name: gitlab-redis
+        image: docker.io/bitnami/redis:5.0.7-debian-9-r50
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: redis
+          containerPort: 6379
+        command:
+        - /bin/bash
+        - -c
+        - |
+          useradd redis
+          chown -R redis /data
+          if [[ -n $REDIS_PASSWORD_FILE ]]; then
+            password_aux=`cat ${REDIS_PASSWORD_FILE}`
+            export REDIS_PASSWORD=$password_aux
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/master.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+          fi
+          if [[ ! -f /opt/bitnami/redis/etc/redis.conf ]];then
+            cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+          fi
+          ARGS=("--port" "${REDIS_PORT}")
+          ARGS+=("--requirepass" "${REDIS_PASSWORD}")
+          ARGS+=("--masterauth" "${REDIS_PASSWORD}")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+          ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+          /run.sh ${ARGS[@]}
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: master
+        - name: REDIS_PASSWORD_FILE
+          value: "/opt/bitnami/redis/secrets/redis-password"
+        - name: REDIS_PORT
+          value: "6379"
+        livenessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_liveness_local.sh 5
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_readiness_local.sh 5
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: health
+          mountPath: /health
+        - name: redis-password
+          mountPath: /opt/bitnami/redis/secrets/
+        - name: redis-data
+          mountPath: /data
+          subPath: 
+        - name: config
+          mountPath: /opt/bitnami/redis/mounted-etc
+        - name: redis-tmp-conf
+          mountPath: /opt/bitnami/redis/etc/
+      securityContext:
+        fsGroup: 0
+      serviceAccountName: "default"
+      volumes:
+      - name: health
+        configMap:
+          name: gitlab-redis-health
+          defaultMode: 0755
+      - name: redis-password
+        secret:
+          secretName: "gitlab-redis-secret"
+          items:
+          - key: "secret"
+            path: redis-password
+      - name: config
+        configMap:
+          name: gitlab-redis
+      - name: redis-tmp-conf
+        emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app: gitlab
+          component: redis
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+        selector:
+          matchLabels:
+            app: gitlab
+            component: redis

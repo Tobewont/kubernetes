@@ -1,0 +1,14 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gitlab-registry-v1
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: registry
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      component: registry

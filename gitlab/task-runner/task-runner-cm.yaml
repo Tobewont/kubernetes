@@ -1,0 +1,219 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-task-runner
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: task-runner
+data:
+  database.yml.erb: |
+    production:
+      adapter: postgresql
+      encoding: unicode
+      database: gitlabhq_production
+      username: gitlab
+      password: "<%= File.read("/etc/gitlab/postgres/psql-password").strip.dump[1..-2] %>"
+      host: "gitlab-postgresql"
+      port: 5432
+      pool: 1
+      connect_timeout: 
+      prepared_statements: false
+      
+  smtp_settings.rb: |
+    
+  resque.yml.erb: |
+    production:
+      url: redis://:<%= ERB::Util::url_encode(File.read("/etc/gitlab/redis/redis-password").strip) %>@gitlab-redis-master:6379
+      id:
+  
+  cable.yml.erb: |
+    production:
+      url: redis://:<%= ERB::Util::url_encode(File.read("/etc/gitlab/redis/redis-password").strip) %>@gitlab-redis-master:6379
+      id:
+      adapter: redis
+      
+  gitlab.yml.erb: |
+    production: &base
+      gitlab:
+        host: gitlab.lzxlinux.com
+        https: false
+        max_request_duration_seconds: 57
+        impersonation_enabled: 
+        usage_ping_enabled: true
+        seat_link_enabled: true
+        default_can_create_group: true
+        username_changing_enabled: true
+        issue_closing_pattern: 
+        default_theme: 
+        default_projects_features:
+          issues: true
+          merge_requests: true
+          wiki: true
+          snippets: true
+          builds: true
+          container_registry: true
+        webhook_timeout: 
+        trusted_proxies:
+        time_zone: "UTC"        
+        email_from: "gitlab@lzxlinux.com"
+        email_display_name: "GitLab"
+        email_reply_to: "noreply@lzxlinux.com"
+        email_subject_suffix: ""
+      
+      object_store:
+        enabled: true
+        direct_upload: true
+        background_upload: false
+        proxy_download: true
+        connection:
+          provider: AWS
+          region: us-east-1
+          host: minio.lzxlinux.com
+          endpoint: http://gitlab-minio-svc:9000
+          path_style: true
+          aws_access_key_id: "<%= File.read('/etc/gitlab/minio/accesskey').strip.dump[1..-2] %>"
+          aws_secret_access_key: "<%= File.read('/etc/gitlab/minio/secretkey').strip.dump[1..-2] %>"
+        objects:
+          artifacts:
+            bucket: gitlab-artifacts
+          lfs:
+            bucket: git-lfs
+          uploads:
+            bucket: gitlab-uploads
+          packages:
+            bucket: gitlab-packages
+          external_diffs:
+            bucket: gitlab-mr-diffs
+          terraform_state:
+            bucket: gitlab-terraform-state
+          dependency_proxy:
+            bucket: gitlab-dependency-proxy
+
+      artifacts:
+        enabled: true
+      lfs:
+        enabled: true
+      uploads:
+        enabled: true
+      packages:
+        enabled: true
+      external_diffs:
+        enabled: 
+        when: 
+      terraform_state:
+        enabled: false
+      dependency_proxy:
+        enabled: false
+      pseudonymizer:
+        manifest: config/pseudonymizer.yml
+        upload:
+          remote_directory: gitlab-pseudo
+          connection:
+            provider: AWS
+            region: us-east-1
+            aws_access_key_id: "<%= File.read('/etc/gitlab/minio/accesskey').strip.dump[1..-2] %>"
+            aws_secret_access_key: "<%= File.read('/etc/gitlab/minio/secretkey').strip.dump[1..-2] %>"
+            host: minio.lzxlinux.com
+            endpoint: http://gitlab-minio-svc:9000
+            path_style: true
+      
+      pages:
+        enabled: false
+      mattermost:
+        enabled: false
+
+      registry:
+        enabled: true
+        host: registry.lzxlinux.com
+        api_url: http://gitlab-registry:5000
+        key: /etc/gitlab/registry/gitlab-registry.key
+        issuer: gitlab-issuer
+      gitlab_ci:
+      ldap:
+        enabled: false
+      
+      omniauth:
+        enabled: false
+        sync_profile_from_provider: []
+        sync_profile_attributes: ["email"]
+        allow_single_sign_on: ["saml"]
+        block_auto_created_users: true
+        auto_link_ldap_user: false
+        auto_link_saml_user: false
+        external_providers: []
+      kerberos:
+        enabled: false
+      shared:
+      gitaly:
+        client_path: /home/git/gitaly/bin
+        token: "<%= File.read('/etc/gitlab/gitaly/gitaly_token').strip.dump[1..-2] %>"
+      repositories:
+        storages: # You must have at least a `default` storage path.
+          default:
+            path: /var/opt/gitlab/repo
+            gitaly_address: tcp://gitlab-gitaly-0.gitlab-gitaly.public-service:8075
+          
+      backup:
+        path: "tmp/backups"   # Relative paths are relative to Rails.root (default: tmp/backups/)
+      
+      gitlab_shell:
+        path: /home/git/gitlab-shell/
+        hooks_path: /home/git/gitlab-shell/hooks/
+        upload_pack: true
+        receive_pack: true
+        secret_file: /etc/gitlab/shell/.gitlab_shell_secret
+      workhorse:
+      git:
+        bin_path: /usr/bin/git
+      webpack:
+      monitoring:
+        ip_whitelist:
+          - 127.0.0.0/8
+        sidekiq_exporter:
+      extra:
+      
+  configure: |
+    set -e
+    config_dir="/init-config"
+    secret_dir="/init-secrets"
+    
+    for secret in shell gitaly registry rails-secrets ; do
+      mkdir -p "${secret_dir}/${secret}"
+      cp -v -r -L "${config_dir}/${secret}/." "${secret_dir}/${secret}/"
+    done
+    for secret in redis minio objectstorage postgres ldap omniauth smtp kas ; do
+      if [ -e "${config_dir}/${secret}" ]; then
+        mkdir -p "${secret_dir}/${secret}"
+        cp -v -r -L "${config_dir}/${secret}/." "${secret_dir}/${secret}/"
+      fi
+    done
+    
+    if [ ! -f "/${secret_dir}/objectstorage/.s3cfg" ]; then
+    cat <<EOF > "/${secret_dir}/.s3cfg"
+    [default]
+    access_key = $(cat /init-secrets/minio/accesskey)
+    secret_key = $(cat /init-secrets/minio/secretkey)
+    bucket_location = us-east-1
+    host_base = minio.lzxlinux.com
+    host_bucket = minio.lzxlinux.com/%(bucket)
+    default_mime_type = binary/octet-stream
+    enable_multipart = True
+    multipart_max_chunks = 10000
+    multipart_chunk_size_mb = 128
+    recursive = True
+    recv_chunk = 65536
+    send_chunk = 65536
+    server_side_encryption = False
+    signature_v2 = True
+    socket_timeout = 300
+    use_mime_magic = False
+    verbosity = WARNING
+    website_endpoint = http://minio.lzxlinux.com
+    EOF
+    else
+      mv "/${secret_dir}/objectstorage/.s3cfg" "/${secret_dir}/.s3cfg"
+    fi
+    
+  configure-gsutil: |
+    printf "$GOOGLE_APPLICATION_CREDENTIALS\nN\n\nN\n" | gsutil config -e

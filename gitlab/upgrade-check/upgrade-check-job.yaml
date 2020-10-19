@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitlab-upgrade-check
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitlab
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: gitlab
+    spec:
+      containers:
+        - name: run-check
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ['/bin/sh', '/scripts/runcheck']
+          env:
+            - name: GITLAB_VERSION
+              value: '13.4.3'
+            - name: CHART_VERSION
+              value: '4.4.3'
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+            - name: chart-info
+              mountPath: /chart-info
+            - name: scripts
+              mountPath: /scripts
+            - name: postgresql-secret
+              mountPath: /etc/secrets/postgresql
+      securityContext:
+        runAsUser: 65534
+        fsGroup: 65534
+      restartPolicy: Never
+      volumes:
+      - name: chart-info
+        configMap:
+          name: gitlab-chart-info
+          optional: true
+      - name: scripts
+        configMap:
+          name: gitlab-upgrade-check
+      - name: postgresql-secret
+        secret:
+          secretName: "gitlab-postgresql-password"
+          optional: true

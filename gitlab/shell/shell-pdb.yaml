@@ -1,0 +1,14 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gitlab-shell
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitlab-shell
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      component: gitlab-shell

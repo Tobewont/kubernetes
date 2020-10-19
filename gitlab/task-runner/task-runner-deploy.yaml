@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-task-runner
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: task-runner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitlab
+      component: task-runner
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: task-runner
+    spec:
+      initContainers:
+        - name: configure
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ['sh', '/config/configure']
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+          - name: task-runner-config
+            mountPath: /config
+            readOnly: true
+          - name: init-task-runner-secrets
+            mountPath: /init-config
+            readOnly: true
+          - name: task-runner-secrets
+            mountPath: /init-secrets
+            readOnly: false
+      containers:
+        - name: task-runner
+          image: registry.gitlab.com/gitlab-org/build/cng/gitlab-task-runner-ee:v13.4.3
+          imagePullPolicy: IfNotPresent
+          args:
+            - /bin/bash
+            - -c
+            - cp -v -r -L /etc/gitlab/.s3cfg $HOME/.s3cfg && while sleep 3600; do :; done # alpine sleep has no infinity
+          env:
+            - name: ARTIFACTS_BUCKET_NAME
+              value: gitlab-artifacts
+            - name: REGISTRY_BUCKET_NAME
+              value: registry
+            - name: LFS_BUCKET_NAME
+              value: git-lfs
+            - name: UPLOADS_BUCKET_NAME
+              value: gitlab-uploads
+            - name: PACKAGES_BUCKET_NAME
+              value: gitlab-packages
+            - name: EXTERNAL_DIFFS_BUCKET_NAME
+              value: gitlab-mr-diffs
+            - name: TERRAFORM_STATE_BUCKET_NAME
+              value: gitlab-terraform-state
+            - name: BACKUP_BUCKET_NAME
+              value: gitlab-backups
+            - name: BACKUP_BACKEND
+              value: s3
+            - name: TMP_BUCKET_NAME
+              value: tmp
+            - name: GITALY_FEATURE_DEFAULT_ON
+              value: "1"
+            - name: ENABLE_BOOTSNAP
+              value: "1"
+            - name: CONFIG_TEMPLATE_DIRECTORY
+              value: '/var/opt/gitlab/templates'
+            - name: CONFIG_DIRECTORY
+              value: '/srv/gitlab/config'
+          resources:
+            requests:
+              cpu: 50m
+              memory: 350M
+          volumeMounts:
+            - name: task-runner-config
+              mountPath: '/var/opt/gitlab/templates'
+            - name: task-runner-config
+              mountPath: '/srv/gitlab/config/initializers/smtp_settings.rb'
+              subPath: smtp_settings.rb
+            - name: task-runner-secrets
+              mountPath: '/etc/gitlab'
+              readOnly: true
+            - name: task-runner-secrets
+              mountPath: /srv/gitlab/config/secrets.yml
+              subPath: rails-secrets/secrets.yml
+            - name: task-runner-tmp
+              mountPath: '/srv/gitlab/tmp'
+              readOnly: false
+            - name: etc-ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: true
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: gitlab
+                  component: gitaly
+      volumes:
+      - name: task-runner-config
+        projected:
+          sources:
+            - configMap:
+                name: gitlab-task-runner
+      - name: task-runner-tmp
+        emptyDir: {}
+      - name: init-task-runner-secrets
+        projected:
+          defaultMode: 0400
+          sources:
+          - secret:
+              name: "gitlab-rails-secret"
+              items:
+                - key: secrets.yml
+                  path: rails-secrets/secrets.yml
+          - secret:
+              name: "gitlab-shell-secret"
+              items:
+                - key: "secret"
+                  path: shell/.gitlab_shell_secret
+          - secret:
+              
+              name: "gitlab-gitaly-secret"
+              items:
+                - key: "token"
+                  path: gitaly/gitaly_token
+          - secret:
+              name: "gitlab-redis-secret"
+              items:
+                - key: "secret"
+                  path: redis/redis-password
+          - secret:
+              name: "gitlab-postgresql-password"
+              items:
+                - key: "postgresql-password"
+                  path: postgres/psql-password
+          - secret:
+              name: "gitlab-registry-secret"
+              items:
+                - key: registry-auth.key
+                  path: registry/gitlab-registry.key
+          - secret:
+              name: "gitlab-minio-secret"
+              items:
+                - key: accesskey
+                  path: minio/accesskey
+                - key: secretkey
+                  path: minio/secretkey
+      - name: task-runner-secrets
+        emptyDir:
+          medium: "Memory"
+      - name: etc-ssl-certs
+        emptyDir:
+          medium: "Memory"

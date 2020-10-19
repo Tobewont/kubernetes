@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-shell-sshd
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitlab-shell
+data:
+  sshd_config: |
+    Port 2222
+    PermitRootLogin no
+    UsePrivilegeSeparation no
+    PidFile /srv/sshd/sshd.pid
+    AuthorizedKeysFile  .ssh/authorized_keys
+    AuthorizedKeysCommand /authorized_keys %u %k
+    AuthorizedKeysCommandUser git
+    PasswordAuthentication no
+    AllowUsers git
+    AcceptEnv GIT_PROTOCOL
+    DisableForwarding yes
+    MaxStartups 10:30:100
+    LoginGraceTime 120

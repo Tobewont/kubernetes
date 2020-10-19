@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: gitlab-minio
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: minio
+spec:
+  rules:
+    - host: minio.lzxlinux.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: gitlab-minio-svc
+              servicePort: 9000

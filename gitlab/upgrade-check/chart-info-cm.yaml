@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-chart-info
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitlab
+data:
+  gitlabVersion: "13.4.3"
+  gitlabChartVersion: "4.4.3"

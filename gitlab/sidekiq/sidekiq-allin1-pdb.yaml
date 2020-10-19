@@ -1,0 +1,14 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gitlab-sidekiq-all-in-1-v1
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: sidekiq
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      component: sidekiq

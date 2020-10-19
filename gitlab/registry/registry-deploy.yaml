@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-registry
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: registry
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gitlab
+      component: registry
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: registry
+    spec:
+      initContainers:
+        - name: configure
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "/config/configure"]
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+            - name: registry-secrets
+              mountPath: /config
+            - name: registry-server-config
+              mountPath: /registry
+      containers:
+        - name: registry
+          image: registry.gitlab.com/gitlab-org/build/cng/gitlab-container-registry:v2.11.0-gitlab
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+          livenessProbe:
+            httpGet:
+              path: /debug/health
+              port: 5001
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /debug/health
+              port: 5001
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          volumeMounts:
+          - name: registry-server-config
+            mountPath: /etc/docker/registry/
+            readOnly: true
+          - name: etc-ssl-certs
+            mountPath: /etc/ssl/certs/
+            readOnly: true
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: gitlab
+                  component: registry
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: registry-server-config
+        emptyDir:
+          medium: "Memory"
+      - name: registry-secrets
+        projected:
+          sources:
+          - configMap:
+              name: gitlab-registry
+          - secret:
+              name: "gitlab-registry-secret"
+              items:
+                  - key: registry-auth.crt
+                    path: certificate.crt
+          - secret:
+              name: "gitlab-registry-httpsecret"
+              items:
+                - key: "secret"
+                  path: httpSecret
+          - secret:
+              name: "gitlab-minio-secret"
+      - name: etc-ssl-certs
+        emptyDir:
+          medium: "Memory"

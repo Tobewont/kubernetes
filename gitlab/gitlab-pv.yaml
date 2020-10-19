@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitlab-gitaly
+  labels:
+    app: gitlab
+    component: gitaly
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/gitlab/gitaly
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitlab-minio
+  labels:
+    app: gitlab
+    component: minio
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/gitlab/minio
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitlab-postgresql
+  labels:
+    app: gitlab
+    component: postgresql
+spec:
+  capacity:
+    storage: 8Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/gitlab/postgresql
+    
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitlab-redis
+  labels:
+    app: gitlab
+    component: redis
+spec:
+  capacity:
+    storage: 8Gi
+  accessModes: 
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: 192.168.30.129
+    path: /data/gitlab/redis

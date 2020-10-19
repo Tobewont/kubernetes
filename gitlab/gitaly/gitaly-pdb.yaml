@@ -1,0 +1,14 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: gitlab-gitaly
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitaly
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      component: gitaly

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-sidekiq-all-in-1
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: sidekiq
+    queue_pod_name: all-in-1
+data:
+  sidekiq_queues.yml.erb: |
+    <%=
+       sq = YAML.load_file('/srv/gitlab/config/sidekiq_queues.yml')
+       
+       sq.to_yaml
+    %>

@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-shell
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitlab-shell
+data:
+  configure: |
+    set -e
+    config_dir="/init-config"
+    secret_dir="/init-secrets"
+    
+    for secret in shell ; do
+      mkdir -p "${secret_dir}/${secret}"
+      cp -v -r -L "${config_dir}/${secret}/." "${secret_dir}/${secret}/"
+    done
+    for secret in redis minio objectstorage postgres ldap omniauth smtp kas ; do
+      if [ -e "${config_dir}/${secret}" ]; then
+        mkdir -p "${secret_dir}/${secret}"
+        cp -v -r -L "${config_dir}/${secret}/." "${secret_dir}/${secret}/"
+      fi
+    done
+    mkdir -p /${secret_dir}/ssh
+    cp -v -r -L /${config_dir}/ssh_host_* /${secret_dir}/ssh/
+    chmod 0400 /${secret_dir}/ssh/ssh_host_*
+    
+  config.yml.erb: |
+    user: git
+    gitlab_url: "http://gitlab-webservice:8181/"
+    secret_file: /etc/gitlab-secrets/shell/.gitlab_shell_secret
+    http_settings:
+      self_signed_cert: false
+    auth_file: "/home/git/.ssh/authorized_keys"
+    log_level: INFO
+    audit_usernames: false

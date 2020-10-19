@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-minio
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: minio
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitlab
+      component: minio
+  template:
+    metadata:
+      name: gitlab-minio
+      labels:
+        app: gitlab
+        component: minio
+    spec:
+      initContainers:
+        - name: configure
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "/config/configure"]
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+            - name: minio-configuration
+              mountPath: /config
+            - name: minio-server-config
+              mountPath: /minio
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2017-12-28T01-21-00Z
+          imagePullPolicy: IfNotPresent
+          args: ["-C", "/tmp/.minio", "--quiet", "server", "/export"]
+          ports:
+            - name: service
+              containerPort: 9000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            tcpSocket:
+              port: 9000
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: export
+              mountPath: /export
+            - name: minio-server-config
+              mountPath: "/tmp/.minio"
+            - name: podinfo
+              mountPath: /podinfo
+              readOnly: false
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      volumes:
+        - name: podinfo
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+        - name: export
+          persistentVolumeClaim:
+            claimName: gitlab-minio
+        - name: minio-configuration
+          projected:
+            sources:
+            - configMap:
+                name: gitlab-minio-config-cm
+            - secret:
+                name: "gitlab-minio-secret"
+        - name: minio-server-config
+          emptyDir:
+            medium: "Memory"

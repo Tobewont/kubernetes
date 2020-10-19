@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-redis
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: redis
+data:
+  redis.conf: |-
+    appendonly yes
+    save ""
+    
+  master.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    
+  replica.conf: |-
+    dir /data
+    slave-read-only yes
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""

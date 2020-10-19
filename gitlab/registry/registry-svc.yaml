@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-registry
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: registry
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5000
+    targetPort: 5000
+    protocol: TCP
+    name: registry
+  selector:
+    app: gitlab
+    component: registry

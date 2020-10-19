@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-gitaly
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: registry
+data:
+  configure: |
+    set -e
+    mkdir -p /init-secrets/gitaly /init-secrets/shell
+    cp -v -r -L /init-config/.gitlab_shell_secret  /init-secrets/shell/.gitlab_shell_secret
+    cp -v -r -L /init-config/gitaly_token  /init-secrets/gitaly/gitaly_token
+    
+  config.toml.erb: |
+    bin_dir = "/usr/local/bin"
+    listen_addr = "0.0.0.0:8075"
+    internal_socket_dir = "/home/git"
+    prometheus_listen_addr = "localhost:9236"
+    
+    <% @storages = [  "default",  ] %>
+    <% @index=`echo ${HOSTNAME##*-}`.to_i %>
+    <% if @storages.length > @index %>
+    [[storage]]
+    name = "<%= @storages[@index] %>"
+    path = "/home/git/repositories"
+    <% else %>
+    <% raise Exception, "Storage for node #{@index} is not present in the storageNames array. Did you use kubectl to scale up ? You need to solely use helm for this purpose" %>
+    <% end %>
+
+    [logging]
+    format = "json"
+    dir = "/var/log/gitaly"
+
+    [auth]
+    token = "<%= File.read('/etc/gitlab-secrets/gitaly/gitaly_token').strip.dump[1..-2] %>"
+
+    [git]
+
+    [gitaly-ruby]
+    dir = "/srv/gitaly-ruby"
+    rugged_git_config_search_path = "/usr/local/etc"
+
+    [gitlab-shell]
+    dir = "/srv/gitlab-shell"
+
+    [gitlab]
+    secret_file = "/etc/gitlab-secrets/shell/.gitlab_shell_secret"
+    url = "http://gitlab-webservice:8181/"
+
+    [gitlab.http-settings]
+    self_signed_cert = false
+
+    [hooks]
+    custom_hooks_dir = "/home/git/custom_hooks"

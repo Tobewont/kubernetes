@@ -1,0 +1,117 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitlab-migrations-1
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: migrations
+spec:
+  activeDeadlineSeconds: 3600
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: migrations
+    spec:
+      initContainers:
+        - name: configure
+          image: busybox:latest
+          command: ['sh', '/config/configure']
+          resources:
+            requests:
+              cpu: 50m
+          volumeMounts:
+          - name: migrations-config
+            mountPath: /config
+            readOnly: true
+          - name: init-migrations-secrets
+            mountPath: /init-config
+            readOnly: true
+          - name: migrations-secrets
+            mountPath: /init-secrets
+            readOnly: false
+      containers:
+        - name: migrations
+          image: registry.gitlab.com/gitlab-org/build/cng/gitlab-task-runner-ee:v13.4.3
+          imagePullPolicy: IfNotPresent
+          args:
+            - /scripts/wait-for-deps
+            - /scripts/db-migrate
+          env:
+            - name: GITLAB_SHARED_RUNNERS_REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "gitlab-runner-secret"
+                  key: runner-registration-token
+            - name: CONFIG_TEMPLATE_DIRECTORY
+              value: '/var/opt/gitlab/templates'
+            - name: CONFIG_DIRECTORY
+              value: '/srv/gitlab/config'
+            - name: BYPASS_SCHEMA_VERSION
+              value: 'true'
+            - name: ENABLE_BOOTSNAP
+              value: '1'
+          resources:
+            requests:
+              cpu: 250m
+              memory: 200Mi
+          volumeMounts:
+            - name: migrations-config
+              mountPath: '/var/opt/gitlab/templates'
+            - name: migrations-secrets
+              mountPath: '/etc/gitlab'
+              readOnly: true
+            - name: migrations-secrets
+              mountPath: /srv/gitlab/config/secrets.yml
+              subPath: rails-secrets/secrets.yml
+            - name: migrations-secrets
+              mountPath: /srv/gitlab/config/initial_root_password
+              subPath: migrations/initial_root_password
+            - name: etc-ssl-certs
+              mountPath: /etc/ssl/certs/
+              readOnly: true
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      restartPolicy: OnFailure
+      volumes:
+      - name: migrations-config
+        configMap:
+          name: gitlab-migrations
+      - name: init-migrations-secrets
+        projected:
+          defaultMode: 0400
+          sources:
+          - secret:
+              name: "gitlab-rails-secret"
+              items:
+                - key: secrets.yml
+                  path: rails-secrets/secrets.yml
+          - secret:
+              name: "gitlab-gitaly-secret"
+              items:
+                - key: "token"
+                  path: gitaly/gitaly_token
+          - secret:
+              name: "gitlab-redis-secret"
+              items:
+                - key: "secret"
+                  path: redis/redis-password
+          - secret:
+              name: "gitlab-postgresql-password"
+              items:
+                - key: "postgresql-password"
+                  path: postgres/psql-password
+          - secret:
+              name: "gitlab-initial-root-password"
+              items:
+                - key: "password"
+                  path: migrations/initial_root_password
+      - name: migrations-secrets
+        emptyDir:
+          medium: "Memory"
+      - name: etc-ssl-certs
+        emptyDir:
+          medium: "Memory"

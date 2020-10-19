@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: gitlab-registry
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: registry
+spec:
+  rules:
+    - host: registry.lzxlinux.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: gitlab-registry
+              servicePort: 5000

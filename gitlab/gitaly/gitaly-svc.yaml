@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-gitaly
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitaly
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 8075
+      name: gitaly
+      targetPort: 8075
+  selector:
+    app: gitlab
+    component: gitaly

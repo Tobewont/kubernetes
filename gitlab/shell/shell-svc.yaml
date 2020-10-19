@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-shell
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: gitlab-shell
+spec:
+  type: ClusterIP
+  ports:
+    - port: 22
+      targetPort: 2222
+      protocol: TCP
+      name: ssh
+  selector:
+    app: gitlab
+    component: gitlab-shell

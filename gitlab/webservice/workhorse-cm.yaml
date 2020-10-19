@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-workhorse-config
+  namespace: public-service
+  labels:
+    app: gitlab
+    component: webservice
+data:
+  installation_type: |
+    gitlab-helm-chart
+    
+  workhorse-config.toml.erb: |
+    [redis]
+    URL = "redis://gitlab-redis-master:6379"
+    Password = "<%= File.read("/etc/gitlab/redis/redis-password").strip.dump[1..-2] %>"
+    <%
+      require 'yaml'
+    
+      supported_providers = %w(AWS AzureRM)
+      provider = ''
+      aws_access_key_id = ''
+      aws_secret_access_key = ''
+    
+      azure_storage_account_name = ''
+      azure_storage_access_key = ''
+    
+      if File.exists? '/etc/gitlab/minio/accesskey'
+        provider = 'AWS'
+        aws_access_key_id = File.read('/etc/gitlab/minio/accesskey').strip.dump[1..-2]
+        aws_secret_access_key = File.read('/etc/gitlab/minio/secretkey').strip.dump[1..-2]
+      end
+    
+      if File.exists? '/etc/gitlab/objectstorage/object_store'
+        connection = YAML.safe_load(File.read('/etc/gitlab/objectstorage/object_store'))
+        provider = connection['provider']
+        if connection.has_key? 'aws_access_key_id'
+          aws_access_key_id = connection['aws_access_key_id']
+          aws_secret_access_key = connection['aws_secret_access_key']
+        elsif connection.has_key? 'azure_storage_account_name'
+          azure_storage_account_name = connection['azure_storage_account_name']
+          azure_storage_access_key = connection['azure_storage_access_key']
+        end
+      end
+    
+      if supported_providers.include? provider
+    %>
+    [object_storage]
+    provider = "<%= provider %>"
+    <%   if provider.eql? 'AWS' %>
+
+    [object_storage.s3]
+
+    aws_access_key_id = "<%= aws_access_key_id %>"
+    aws_secret_access_key = "<%= aws_secret_access_key %>"
+    <%   elsif provider.eql? 'AzureRM' %>
+
+    [object_storage.azurerm]
+    azure_storage_account_name = "<%= azure_storage_account_name %>"
+    azure_storage_access_key = "<%= azure_storage_access_key %>"
+    <%
+        end
+      end
+    %>
+    
+  configure: |
+      set -e
+      mkdir -p /init-secrets-workhorse/gitlab-workhorse
+      cp -v -r -L /init-config/gitlab-workhorse/secret /init-secrets-workhorse/gitlab-workhorse/secret
+      mkdir -p /init-secrets-workhorse/redis
+      cp -v -r -L /init-config/redis/redis-password /init-secrets-workhorse/redis/
+      if [ -d /init-config/minio ]; then
+        mkdir -p /init-secrets-workhorse/minio
+        cp -v -r -L /init-config/minio/* /init-secrets-workhorse/minio/
+      fi
+
