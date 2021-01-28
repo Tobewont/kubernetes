@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zabbix-server
+  namespace: monitoring
+  labels:
+    app: zabbix-server
+spec:
+  selector:
+    app: zabbix-server
+  ports:
+  - name: zabbix-server
+    port: 10051
+    nodePort: 30051
+  type: NodePort
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zabbix-server
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zabbix-server
+  template:
+    metadata:
+      labels:
+        app: zabbix-server
+    spec:
+      containers:
+      - name: zabbix-server
+        image: zabbix/zabbix-server-mysql:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DB_SERVER_HOST
+          value: mysql
+        - name: DB_SERVER_PORT
+          value: "3306"
+        - name: MYSQL_DATABASE
+          value: zabbix
+        - name: MYSQL_USER
+          value: zabbix
+        - name: MYSQL_PASSWORD
+          value: zabbix
+        - name: MYSQL_ROOT_PASSWORD
+          value: zabbix
+        - name: ZBX_CACHESIZE
+          value: "512M"
+        - name: ZBX_HISTORYCACHESIZE
+          value: "128M"
+        - name: ZBX_HISTORYINDEXCACHESIZE
+          value: "128M"
+        - name: ZBX_TRENDCACHESIZE
+          value: "128M"
+        - name: ZBX_VALUECACHESIZE
+          value: "256M"
+        - name: ZBX_TIMEOUT
+          value: "30"
+        ports:
+        - containerPort: 10051
+          name: zabbix-server
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 1000Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+      - name: zabbix-agent
+        image: zabbix/zabbix-agent:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ZBX_HOSTNAME
+          value: "Zabbix server"
+        - name: ZBX_SERVER_HOST
+          value: "127.0.0.1"
+        - name: ZBX_STARTAGENTS
+          value: "3"
+        - name: ZBX_UNSAFEUSERPARAMETERS
+          value: "1"
+        - name: ZBX_TIMEOUT
+          value: "10"
+        ports:
+        - containerPort: 10050
+          name: zabbix-agent
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 200m
+            memory: 200Mi
+          limits:
+            cpu: 200m
+            memory: 200Mi
+      nodeSelector:             #固定zabbix server ip
+        node-role.kubernetes.io/master: ""
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule

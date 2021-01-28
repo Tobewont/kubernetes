@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: monitoring
+  labels:
+    app: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+  - name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  clusterIP: None
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: monitoring
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:5.7.28
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--character-set-server=utf8"
+        - "--collation-server=utf8_bin"
+        - "--default-authentication-plugin=mysql_native_password"
+        env:
+        - name: MYSQL_DATABASE
+          value: "zabbix"
+        - name: MYSQL_USER
+          value: "zabbix"
+        - name: MYSQL_PASSWORD
+          value: "zabbix"
+        - name: MYSQL_ROOT_PASSWORD
+          value: "zabbix"
+        ports:
+        - containerPort: 3306
+          name: mysql
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 1000Mi
+          limits:
+            cpu: 2000m
+            memory: 2000Mi
+        volumeMounts:
+        - name: timezone
+          mountPath: /etc/localtime
+        - name: data
+          mountPath: /var/lib/mysql
+      terminationGracePeriodSeconds: 20
+      volumes:
+        - name: timezone
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Shanghai
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      namespace: monitoring
+    spec:
+      selector:
+        matchLabels:
+          pvname: nfs-mysql-pv
+      accessModes: [ "ReadWriteMany" ]
+      resources:
+        requests:
+          storage: 20Gi
