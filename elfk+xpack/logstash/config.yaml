@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: log
+data:
+  logstash.yml: |
+    http.host: "0"
+    http.port: 9600
+    path.config: /usr/share/logstash/pipeline
+    config.reload.automatic: true
+    xpack.monitoring.enabled: true
+    xpack.monitoring.elasticsearch.username: logstash_system
+    xpack.monitoring.elasticsearch.password: elk-2021
+    xpack.monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+    xpack.monitoring.collection.interval: 10s
+
+  logstash.conf: |
+    input {
+      beats {
+        port => 5040
+      }
+    }
+
+    filter {
+      if [type] == "nginx_access" {
+        grok {
+            match => { "message" => "%{COMBINEDAPACHELOG}" }
+        }
+      }
+      if [type] == "tomcat_access" {
+        grok {
+            match => { "message" => "(?<timestamp>%{MONTHDAY}-%{MONTH}-%{YEAR} %{TIME}) %{LOGLEVEL:level} \[%{DATA:exception_info}\] %{GREEDYDATA:message}" }
+        }
+      }
+    }
+
+    output {
+      if [type] == "nginx_access" {
+        elasticsearch {
+          hosts => ["elasticsearch:9200"]
+          user => "elastic"
+          password => "elk-2021"
+          index => "nginx-log"
+        }
+      }
+      if [type] == "tomcat_access" {
+        elasticsearch {
+          hosts => ["elasticsearch:9200"]
+          user => "elastic"
+          password => "elk-2021"
+          index => "tomcat-log"
+        }
+      }
+    }

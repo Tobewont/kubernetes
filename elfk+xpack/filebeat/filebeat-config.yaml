@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: default
+  labels:
+    app: filebeat
+data:
+  filebeat.yml: |-
+    filebeat.config:
+      inputs:
+        path: ${path.config}/inputs.d/*.yml
+        reload.enabled: false
+      modules:
+        path: ${path.config}/modules.d/*.yml
+        reload.enabled: false
+
+    filebeat.inputs:
+    - type: log
+      enabled: true
+      tail_files: true
+      backoff: "1s"
+      paths:
+        - /nginxlog/*.log
+      fields:
+        pod_name: '${pod_name}'
+        POD_IP: '${POD_IP}'
+        type: nginx_access
+      fields_under_root: true
+      multiline.pattern: '\d+\.\d+\.\d+\.\d+'
+      multiline.negate: true
+      multiline.match: after
+
+    - type: log
+      enabled: true
+      tail_files: true
+      backoff: "1s"
+      paths:
+        - /tomcatlog/*.log
+      fields:
+        pod_name: '${pod_name}'
+        POD_IP: '${POD_IP}'
+        type: tomcat_access
+      fields_under_root: true
+      multiline.pattern: '\d+\-\w+\-\d+ \d+:\d+:\d+\.\d+'
+      multiline.negate: true
+      multiline.match: after
+
+    output.logstash:
+      hosts: ["logstash.log:5040"]
+      enabled: true
+      worker: 1
+      compression_level: 3
